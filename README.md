@@ -1,2 +1,2 @@
 # Rexcel-Pivot
-Convert pivot tables into R analyses
+Convert Excel pivot tables into R analyses on MacOSX.

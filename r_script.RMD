@@ -1,0 +1,118 @@
+---
+title: 
+author: Carl Erick Hagmann, PhD
+date: '`r Sys.time()`'
+output:
+html_document:
+theme:     spacelab
+highlight:     espresso
+---
+```{r, echo=FALSE, warning=FALSE}
+filepath = file.path("~/Dropbox/r_input.csv")
+dataset = read.table(filepath, header=TRUE, sep=",")
+options(width=10000)
+options(contrasts = c("contr.sum","contr.poly"))
+options(digits=4)
+options(scipen=100)
+library(ez)
+library(knitr)
+library(ggplot2)
+library(pander)
+panderOptions('table.split.table', Inf)
+dataset$Condition = factor(dataset$Condition)
+dataset$Acc = factor(dataset$Acc)
+dataset$Time = factor(dataset$Time)
+``` 
+######Anova SS Type:2
+####Dependent Variable: Average_of_Amplitude
+####FACTORS:
+#####Within:Condition*Acc*Time
+```{r Make ANOVA, echo=FALSE, warning=FALSE}
+dataset=dataset[dataset$Time>99,]
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Condition,Acc,Time), type=1)
+cat("\n")
+print("p<.05: *      p<.01: **     p<.001: ***", quote=FALSE)
+output1 = ezANOVA(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Condition,Acc,Time), detailed=TRUE, type=1, return_aov=FALSE)
+cat("\n")
+numrows=dim(output1$ANOVA)[1]
+for(s in 1:numrows){
+if(output1$ANOVA[s,7]<0.01) output1$ANOVA[s,8]<-"**"
+if(output1$ANOVA[s,7]<0.001) output1$ANOVA[s,8]<-"***"
+if(output1$ANOVA[s,7]<0.001) output1$ANOVA[s,7]=0.001
+}
+pander(output1$ANOVA)
+for (i in 1:numrows){
+info<-sprintf("%s, F(%i,%i)=%.3f, p=%.3f, ges=%.3f",output1$ANOVA$Effect[i],output1$ANOVA$DFn[i],output1$ANOVA$DFd[i],output1$ANOVA$F[i],p=output1$ANOVA$p[i], ges=output1$ANOVA$ges[i])
+print(noquote(info))
+}
+```
+```{r Plot, echo=FALSE, warning=FALSE,results='markup'}
+quickgraph=ezPlot(data=dataset, type=1, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Condition,Acc,Time), x=.(Time), do_lines=TRUE, split=.(Acc), x_lab="Condition", y_lab="Average of Amplitude", split_lab="Acc",col=.(Condition))+theme_bw()
+print (quickgraph)
+```
+<br/>
+  
+```{r printDesc all, echo=FALSE, warning=FALSE}
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+```
+###Main Effects
+####Within-Subjects Factors
+```{r within descriptives, echo=FALSE, warning=FALSE}
+cat("\n")
+cat(noquote(" Condition "), fill=TRUE)
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Condition), type=2)
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+cat("\n")
+cat(noquote(" Acc "), fill=TRUE)
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Acc), type=2)
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+cat("\n")
+cat(noquote(" Time "), fill=TRUE)
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Time), type=2)
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+cat("\n")
+```
+####Interactions
+```{r Interactions, echo=FALSE, warning=FALSE}
+cat(noquote("Condition,Acc"), fill=TRUE)
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Condition,Acc), type=2)
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+cat(noquote("Condition,Time"), fill=TRUE)
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Condition,Time), type=2)
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+cat(noquote("Acc,Time"), fill=TRUE)
+desc=ezStats(data=dataset, dv=.(Average_of_Amplitude), wid=.(Sub), within=.(Acc,Time), type=2)
+se<-desc[length(desc)-1]/sqrt(desc[length(desc)-3])
+desc[length(desc)]<-se
+colnames(desc)[length(desc)]="SE"
+pander(desc)
+```
+```{r Multcomp, echo=FALSE, warning=FALSE}
+winId <-1
+t1<-tapply(1:nrow(dataset),dataset[[winId]],function(r) pairwise.t.test(dataset$Average_of_Amplitude[r],dataset$Condition[r],pool.sd=FALSE,p.adj="none"))
+t1
+t1<-tapply(1:nrow(dataset),dataset[[3]],function(r) t.test(dataset$Average_of_Amplitude[dataset[[1]]==1][r],dataset$Average_of_Amplitude[dataset[[1]]==2][r],data=dataset,paired=T))
+for (r in 1:5){
+print(names(t1)[[r]])
+tstat=sprintf("t(%1.0f)=%.2f, p=%.3f",t1[[r]][2],t1[[r]][1],t1[[r]][3])
+print (noquote(tstat))
+}
+```
